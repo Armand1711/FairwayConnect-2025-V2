@@ -2,53 +2,31 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView } from "react-native";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "./firebaseConfig";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
-export default function AuthScreen({ onAuth }) {
-  const [step, setStep] = useState("login"); // "login" or "signup"
-  // Auth fields
+export default function AuthAndOnboardingScreen({ onAuth, onProfile }) {
+  const [step, setStep] = useState("login"); // "login" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Onboarding fields (used on signup)
-  const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
-  const [interests, setInterests] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
-  //
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Merged Signup+Onboarding
   const handleSignup = async () => {
     setError("");
-    if (!email || !password || !displayName || !bio || !interests) {
-      setError("Please fill out all fields.");
+    if (!email || !password) {
+      setError("Enter email and password");
       return;
     }
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const userObj = userCredential.user;
-      // Save profile info
-      const profileData = {
-        uid: userObj.uid,
-        displayName,
-        email: userObj.email,
-        photoUrl,
-        bio,
-        interests: interests.split(",").map(s => s.trim()),
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, "users", userObj.uid), profileData);
-      await setDoc(doc(db, "cards", userObj.uid), { cardId: userObj.uid, ...profileData });
-      onAuth(userObj);
+      onAuth(userCredential.user); // triggers onboarding in App.js
     } catch (e) {
       setError(e.message);
     }
     setLoading(false);
   };
 
-  // Basic Login
   const handleLogin = async () => {
     setError("");
     if (!email || !password) {
@@ -58,7 +36,13 @@ export default function AuthScreen({ onAuth }) {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      onAuth(userCredential.user);
+      // Check if user has a profile:
+      const profileDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+      if (profileDoc.exists()) {
+        onAuth(userCredential.user); // go to HomeScreen
+      } else {
+        onProfile(userCredential.user); // go to onboarding
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -67,32 +51,20 @@ export default function AuthScreen({ onAuth }) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior="padding">
-      <Text style={styles.title}>{step === "signup" ? "Sign Up / Onboarding" : "Log In"}</Text>
+      <Text style={styles.title}>{step === "signup" ? "Sign Up" : "Log In"}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
       <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-      {step === "signup" && (
-        <>
-          <TextInput style={styles.input} placeholder="Display Name" value={displayName} onChangeText={setDisplayName} />
-          <TextInput style={styles.input} placeholder="Bio" value={bio} onChangeText={setBio} />
-          <TextInput style={styles.input} placeholder="Interests (comma separated)" value={interests} onChangeText={setInterests} />
-          <TextInput style={styles.input} placeholder="Photo URL" value={photoUrl} onChangeText={setPhotoUrl} />
-        </>
-      )}
       <TouchableOpacity
         style={styles.button}
         onPress={step === "signup" ? handleSignup : handleLogin}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>
-          {loading ? "Please wait..." : step === "signup" ? "Sign Up" : "Log In"}
-        </Text>
+        <Text style={styles.buttonText}>{loading ? "Please wait..." : step === "signup" ? "Sign Up" : "Log In"}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => setStep(step === "signup" ? "login" : "signup")}>
         <Text style={styles.switchText}>
-          {step === "signup"
-            ? "Already have an account? Log In"
-            : "Don't have an account? Sign Up"}
+          {step === "signup" ? "Already have an account? Log In" : "Need an account? Sign Up"}
         </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
