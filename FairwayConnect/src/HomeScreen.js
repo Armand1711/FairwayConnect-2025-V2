@@ -48,7 +48,7 @@ export default function HomeScreen({ user, onSignOut }) {
       <View style={styles.header}>
         <Text style={styles.title}>FairwayConnect</Text>
         <TouchableOpacity style={styles.profileBtn} onPress={() => setShowProfile(true)}>
-          {/* You can use an icon here, or make the button larger */}
+         
           <Text style={styles.profileText}>👤 Profile</Text>
         </TouchableOpacity>
       </View>
