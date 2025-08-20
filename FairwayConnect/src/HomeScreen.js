@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Modal } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Modal, Alert } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import ProfileScreen from "./ProfileScreen";
+import MatchesScreen from "./MatchesScreen"; 
 import { db } from "./firebaseConfig";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, setDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
 
 export default function HomeScreen({ user, onSignOut }) {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showMatches, setShowMatches] = useState(false);
 
   useEffect(() => {
     const fetchCards = async () => {
@@ -27,6 +29,44 @@ export default function HomeScreen({ user, onSignOut }) {
     };
     fetchCards();
   }, [user]);
+
+  // Swiping right = like
+  const handleSwipeRight = useCallback(async (cardIndex) => {
+    const likedUser = cards[cardIndex];
+    if (!likedUser) return;
+
+    try {
+      // Record like
+      await setDoc(doc(db, "likes", `${user.uid}_${likedUser.uid}`), {
+        from: user.uid,
+        to: likedUser.uid,
+        timestamp: serverTimestamp(),
+      });
+
+      // Check like
+      const reciprocal = await getDoc(doc(db, "likes", `${likedUser.uid}_${user.uid}`));
+      if (reciprocal.exists()) {
+        // Create match
+        const matchId = `${[user.uid, likedUser.uid].sort().join("_")}`;
+        await setDoc(doc(db, "matches", matchId), {
+          users: [user.uid, likedUser.uid],
+          createdAt: serverTimestamp(),
+          game: null, 
+        });
+
+        Alert.alert(
+          "It's a match!",
+          `You and ${likedUser.displayName} can now chat and organize a golf game.`,
+          [
+            { text: "Chat Now", onPress: () => setShowMatches(true) },
+            { text: "OK" }
+          ]
+        );
+      }
+    } catch (err) {
+      console.log("Error on swipe right:", err);
+    }
+  }, [cards, user]);
 
   const renderCard = (card) => (
     <View key={card.id} style={styles.card}>
@@ -47,10 +87,14 @@ export default function HomeScreen({ user, onSignOut }) {
     <View style={{ flex: 1 }}>
       <View style={styles.header}>
         <Text style={styles.title}>FairwayConnect</Text>
-        <TouchableOpacity style={styles.profileBtn} onPress={() => setShowProfile(true)}>
-         
-          <Text style={styles.profileText}>👤 Profile</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row" }}>
+          <TouchableOpacity style={styles.matchesBtn} onPress={() => setShowMatches(true)}>
+            <Text style={styles.matchesText}>🏌️‍♂️ Matches</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.profileBtn} onPress={() => setShowProfile(true)}>
+            <Text style={styles.profileText}>👤 Profile</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {loading ? (
         <ActivityIndicator size="large" style={{ marginTop: 40 }} />
@@ -64,17 +108,27 @@ export default function HomeScreen({ user, onSignOut }) {
             stackSize={3}
             stackSeparation={20}
             verticalSwipe={false}
+            onSwipedRight={handleSwipeRight}
           />
         ) : (
           <Text style={{ textAlign: "center", marginTop: 40 }}>No cards to show</Text>
         )
       )}
 
+      {/* Profile Modal */}
       <Modal visible={showProfile} animationType="slide">
         <ProfileScreen
           user={user}
           onClose={() => setShowProfile(false)}
           onLogout={onSignOut}
+        />
+      </Modal>
+
+      {/* Matches Modal */}
+      <Modal visible={showMatches} animationType="slide">
+        <MatchesScreen
+          user={user}
+          onClose={() => setShowMatches(false)}
         />
       </Modal>
     </View>
@@ -84,8 +138,10 @@ export default function HomeScreen({ user, onSignOut }) {
 const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 18, backgroundColor: "#f0f0f0" },
   title: { fontSize: 24, fontWeight: "bold", color: "#228B22" },
-  profileBtn: { backgroundColor: "#FFD700", borderRadius: 22, padding: 12 },
+  profileBtn: { backgroundColor: "#FFD700", borderRadius: 22, padding: 12, marginLeft: 10 },
   profileText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
+  matchesBtn: { backgroundColor: "#90ee90", borderRadius: 22, padding: 12 },
+  matchesText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
   card: { backgroundColor: "#fff", borderRadius: 14, padding: 18, alignItems: "center", elevation: 3, width: 320, height: 420 },
   cardImage: { width: 240, height: 160, borderRadius: 10, marginBottom: 12 },
   cardTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 6, color: "#228B22" },
