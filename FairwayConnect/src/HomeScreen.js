@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator, Modal, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Alert, SafeAreaView } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import ProfileScreen from "./ProfileScreen";
 import MatchesScreen from "./MatchesScreen"; 
 import { db } from "./firebaseConfig";
 import { collection, getDocs, setDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
+import styles from "../styles/HomeScreenStyles"; 
 
 export default function HomeScreen({ user, onSignOut }) {
   const [cards, setCards] = useState([]);
@@ -70,23 +71,32 @@ export default function HomeScreen({ user, onSignOut }) {
 
   const renderCard = (card) => (
     <View key={card.id} style={styles.card}>
-      {card.photoUrl ? (
-        <Image source={{ uri: card.photoUrl }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, { backgroundColor: "#eee", justifyContent: "center", alignItems: "center" }]}>
-          <Text>No Photo</Text>
-        </View>
-      )}
+      <View style={styles.imageContainer}>
+        {card.photoUrl ? (
+          <Image source={{ uri: card.photoUrl }} style={styles.cardImage} />
+        ) : (
+          <View style={[styles.cardImage, styles.noPhoto]}>
+            <Text style={styles.noPhotoText}>No Photo</Text>
+          </View>
+        )}
+        <View style={styles.imageOverlay} />
+      </View>
       <Text style={styles.cardTitle}>{card.displayName}</Text>
       <Text style={styles.cardDesc}>{card.bio}</Text>
-      <Text style={styles.cardInterests}>Interests: {card.interests && card.interests.join(", ")}</Text>
+      <View style={styles.interestsContainer}>
+        {card.interests && card.interests.map((interest, i) => (
+          <View key={i} style={styles.interestChip}>
+            <Text style={styles.interestText}>{interest}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={styles.gradientBackground}>
       <View style={styles.header}>
-        <Text style={styles.title}>FairwayConnect</Text>
+        <Text style={styles.logoText}>⛳️ FairwayConnect</Text>
         <View style={{ flexDirection: "row" }}>
           <TouchableOpacity style={styles.matchesBtn} onPress={() => setShowMatches(true)}>
             <Text style={styles.matchesText}>🏌️‍♂️ Matches</Text>
@@ -96,26 +106,27 @@ export default function HomeScreen({ user, onSignOut }) {
           </TouchableOpacity>
         </View>
       </View>
-      {loading ? (
-        <ActivityIndicator size="large" style={{ marginTop: 40 }} />
-      ) : (
-        cards.length > 0 ? (
-          <Swiper
-            cards={cards}
-            renderCard={renderCard}
-            cardIndex={0}
-            backgroundColor="#fff"
-            stackSize={3}
-            stackSeparation={20}
-            verticalSwipe={false}
-            onSwipedRight={handleSwipeRight}
-          />
+      <View style={styles.swiperContainer}>
+        {loading ? (
+          <ActivityIndicator size="large" style={{ marginTop: 40 }} color="#228B22" />
         ) : (
-          <Text style={{ textAlign: "center", marginTop: 40 }}>No cards to show</Text>
-        )
-      )}
-
-      {/* Profile Modal */}
+          cards.length > 0 ? (
+            <Swiper
+              cards={cards}
+              renderCard={renderCard}
+              cardIndex={0}
+              backgroundColor="transparent"
+              stackSize={3}
+              stackSeparation={18}
+              verticalSwipe={false}
+              onSwipedRight={handleSwipeRight}
+              containerStyle={{ height: 480 }}
+            />
+          ) : (
+            <Text style={styles.noCardsText}>No players to show</Text>
+          )
+        )}
+      </View>
       <Modal visible={showProfile} animationType="slide">
         <ProfileScreen
           user={user}
@@ -123,28 +134,12 @@ export default function HomeScreen({ user, onSignOut }) {
           onLogout={onSignOut}
         />
       </Modal>
-
-      {/* Matches Modal */}
       <Modal visible={showMatches} animationType="slide">
         <MatchesScreen
           user={user}
           onClose={() => setShowMatches(false)}
         />
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 18, backgroundColor: "#f0f0f0" },
-  title: { fontSize: 24, fontWeight: "bold", color: "#228B22" },
-  profileBtn: { backgroundColor: "#FFD700", borderRadius: 22, padding: 12, marginLeft: 10 },
-  profileText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
-  matchesBtn: { backgroundColor: "#90ee90", borderRadius: 22, padding: 12 },
-  matchesText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
-  card: { backgroundColor: "#fff", borderRadius: 14, padding: 18, alignItems: "center", elevation: 3, width: 320, height: 420 },
-  cardImage: { width: 240, height: 160, borderRadius: 10, marginBottom: 12 },
-  cardTitle: { fontSize: 22, fontWeight: "bold", marginBottom: 6, color: "#228B22" },
-  cardDesc: { fontSize: 16, color: "#555", textAlign: "center", marginBottom: 6 },
-  cardInterests: { fontSize: 14, color: "#888" }
-});
