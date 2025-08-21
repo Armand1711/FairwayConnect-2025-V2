@@ -1,4 +1,5 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, Dimensions } from "react-native";
+const { width } = Dimensions.get("window");
 
 export default StyleSheet.create({
   gradientBackground: {
@@ -10,7 +11,7 @@ export default StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 14,
-    marginBottom: 80, // Leave space for bottom nav
+    marginBottom: 86, // Leave space for bottom nav
   },
   card: {
     backgroundColor: "#fff",
@@ -22,7 +23,7 @@ export default StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
-    width: 340,
+    width: width - 48,
     height: 460,
     marginHorizontal: 8,
   },
@@ -112,8 +113,8 @@ export default StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "rgba(240,240,240,0.96)",
-    paddingVertical: 16,
-    paddingHorizontal: 22,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     position: "absolute",
     left: 0,
     right: 0,
@@ -126,12 +127,15 @@ export default StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     zIndex: 10,
+    minHeight: 72,
+    width: "100%",
   },
   navBtn: {
     backgroundColor: "#90ee90",
     borderRadius: 22,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 2,
     shadowColor: "#228B22",
     shadowOpacity: 0.16,
     shadowRadius: 6,
@@ -148,21 +152,23 @@ export default StyleSheet.create({
     color: "#228B22",
     fontFamily: "Avenir-Heavy",
     letterSpacing: 1,
+    marginHorizontal: 6,
   },
-  // Swipe overlays
+  // Swipe overlays, full card size
   overlayLeft: {
     position: "absolute",
-    top: 60,
-    left: 40,
-    backgroundColor: "rgba(255, 50, 50, 0.2)",
-    borderRadius: 16,
-    padding: 30,
+    top: 0,
+    left: 0,
+    width: width - 48,
+    height: 460,
+    backgroundColor: "rgba(255, 50, 50, 0.18)",
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,
   },
   overlayLeftLabel: {
-    fontSize: 60,
+    fontSize: 70,
     color: "#ff3333",
     fontWeight: "bold",
     textShadowColor: '#fff',
@@ -171,17 +177,18 @@ export default StyleSheet.create({
   },
   overlayRight: {
     position: "absolute",
-    top: 60,
-    right: 40,
-    backgroundColor: "rgba(50,255,50,0.2)",
-    borderRadius: 16,
-    padding: 30,
+    top: 0,
+    left: 0,
+    width: width - 48,
+    height: 460,
+    backgroundColor: "rgba(50,255,50,0.16)",
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,
   },
   overlayRightLabel: {
-    fontSize: 60,
+    fontSize: 70,
     color: "#22bb22",
     fontWeight: "bold",
     textShadowColor: '#fff',

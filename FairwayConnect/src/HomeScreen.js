@@ -6,6 +6,8 @@ import MatchesScreen from "./MatchesScreen";
 import { db } from "./firebaseConfig";
 import { collection, getDocs, setDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import styles from "../styles/HomeScreenStyles";
+import { Dimensions } from "react-native";
+const { width } = Dimensions.get("window");
 
 export default function HomeScreen({ user, onSignOut }) {
   const [cards, setCards] = useState([]);
@@ -37,14 +39,17 @@ export default function HomeScreen({ user, onSignOut }) {
     if (!likedUser) return;
 
     try {
+      // Record like
       await setDoc(doc(db, "likes", `${user.uid}_${likedUser.uid}`), {
         from: user.uid,
         to: likedUser.uid,
         timestamp: serverTimestamp(),
       });
 
+      // Check like
       const reciprocal = await getDoc(doc(db, "likes", `${likedUser.uid}_${user.uid}`));
       if (reciprocal.exists()) {
+        // Create match
         const matchId = `${[user.uid, likedUser.uid].sort().join("_")}`;
         await setDoc(doc(db, "matches", matchId), {
           users: [user.uid, likedUser.uid],
@@ -109,11 +114,6 @@ export default function HomeScreen({ user, onSignOut }) {
               containerStyle={{ height: 480 }}
               overlayLabels={{
                 left: {
-                  title: 'NOPE',
-                  style: {
-                    wrapper: styles.overlayLeft,
-                    label: styles.overlayLeftLabel,
-                  },
                   element: (
                     <View style={styles.overlayLeft}>
                       <Text style={styles.overlayLeftLabel}>❌</Text>
@@ -121,11 +121,6 @@ export default function HomeScreen({ user, onSignOut }) {
                   ),
                 },
                 right: {
-                  title: 'LIKE',
-                  style: {
-                    wrapper: styles.overlayRight,
-                    label: styles.overlayRightLabel,
-                  },
                   element: (
                     <View style={styles.overlayRight}>
                       <Text style={styles.overlayRightLabel}>✅</Text>
