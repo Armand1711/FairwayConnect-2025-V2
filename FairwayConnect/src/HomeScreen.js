@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Alert, SafeAreaView } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import ProfileScreen from "./ProfileScreen";
-import MatchesScreen from "./MatchesScreen"; 
+import MatchesScreen from "./MatchesScreen";
 import { db } from "./firebaseConfig";
 import { collection, getDocs, setDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
-import styles from "../styles/HomeScreenStyles"; 
+import styles from "../styles/HomeScreenStyles";
 
 export default function HomeScreen({ user, onSignOut }) {
   const [cards, setCards] = useState([]);
@@ -37,22 +37,19 @@ export default function HomeScreen({ user, onSignOut }) {
     if (!likedUser) return;
 
     try {
-      // Record like
       await setDoc(doc(db, "likes", `${user.uid}_${likedUser.uid}`), {
         from: user.uid,
         to: likedUser.uid,
         timestamp: serverTimestamp(),
       });
 
-      // Check like
       const reciprocal = await getDoc(doc(db, "likes", `${likedUser.uid}_${user.uid}`));
       if (reciprocal.exists()) {
-        // Create match
         const matchId = `${[user.uid, likedUser.uid].sort().join("_")}`;
         await setDoc(doc(db, "matches", matchId), {
           users: [user.uid, likedUser.uid],
           createdAt: serverTimestamp(),
-          game: null, 
+          game: null,
         });
 
         Alert.alert(
@@ -95,17 +92,6 @@ export default function HomeScreen({ user, onSignOut }) {
 
   return (
     <SafeAreaView style={styles.gradientBackground}>
-      <View style={styles.header}>
-        <Text style={styles.logoText}>⛳️ FairwayConnect</Text>
-        <View style={{ flexDirection: "row" }}>
-          <TouchableOpacity style={styles.matchesBtn} onPress={() => setShowMatches(true)}>
-            <Text style={styles.matchesText}>🏌️‍♂️ Matches</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.profileBtn} onPress={() => setShowProfile(true)}>
-            <Text style={styles.profileText}>👤 Profile</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
       <View style={styles.swiperContainer}>
         {loading ? (
           <ActivityIndicator size="large" style={{ marginTop: 40 }} color="#228B22" />
@@ -121,11 +107,47 @@ export default function HomeScreen({ user, onSignOut }) {
               verticalSwipe={false}
               onSwipedRight={handleSwipeRight}
               containerStyle={{ height: 480 }}
+              overlayLabels={{
+                left: {
+                  title: 'NOPE',
+                  style: {
+                    wrapper: styles.overlayLeft,
+                    label: styles.overlayLeftLabel,
+                  },
+                  element: (
+                    <View style={styles.overlayLeft}>
+                      <Text style={styles.overlayLeftLabel}>❌</Text>
+                    </View>
+                  ),
+                },
+                right: {
+                  title: 'LIKE',
+                  style: {
+                    wrapper: styles.overlayRight,
+                    label: styles.overlayRightLabel,
+                  },
+                  element: (
+                    <View style={styles.overlayRight}>
+                      <Text style={styles.overlayRightLabel}>✅</Text>
+                    </View>
+                  ),
+                },
+              }}
             />
           ) : (
             <Text style={styles.noCardsText}>No players to show</Text>
           )
         )}
+      </View>
+      {/* Bottom navbar */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navBtn} onPress={() => setShowMatches(true)}>
+          <Text style={styles.navBtnText}>🏌️‍♂️ Matches</Text>
+        </TouchableOpacity>
+        <Text style={styles.logoTextBottom}>⛳️ FairwayConnect</Text>
+        <TouchableOpacity style={styles.navBtn} onPress={() => setShowProfile(true)}>
+          <Text style={styles.navBtnText}>👤 Profile</Text>
+        </TouchableOpacity>
       </View>
       <Modal visible={showProfile} animationType="slide">
         <ProfileScreen
