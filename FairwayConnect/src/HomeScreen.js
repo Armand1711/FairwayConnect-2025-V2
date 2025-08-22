@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Alert, SafeAreaView } from "react-native";
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Modal, Alert, SafeAreaView, Dimensions } from "react-native";
 import Swiper from "react-native-deck-swiper";
 import ProfileScreen from "./ProfileScreen";
 import MatchesScreen from "./MatchesScreen";
 import { db } from "./firebaseConfig";
 import { collection, getDocs, setDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import styles from "../styles/HomeScreenStyles";
-import { Dimensions } from "react-native";
 const { width } = Dimensions.get("window");
 
 export default function HomeScreen({ user, onSignOut }) {
@@ -139,9 +138,15 @@ export default function HomeScreen({ user, onSignOut }) {
         <TouchableOpacity style={styles.navBtn} onPress={() => setShowMatches(true)}>
           <Text style={styles.navBtnText}>🏌️‍♂️ Matches</Text>
         </TouchableOpacity>
-        <Text style={styles.logoTextBottom}>⛳️ FairwayConnect</Text>
-        <TouchableOpacity style={styles.navBtn} onPress={() => setShowProfile(true)}>
-          <Text style={styles.navBtnText}>👤 Profile</Text>
+        <TouchableOpacity style={styles.profileCircle} onPress={() => setShowProfile(true)}>
+          {user.photoURL ? (
+            <Image
+              source={{ uri: user.photoURL }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <Text style={styles.profilePlaceholder}>👤</Text>
+          )}
         </TouchableOpacity>
       </View>
       <Modal visible={showProfile} animationType="slide">
