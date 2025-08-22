@@ -212,4 +212,42 @@ export default StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
+  // Golf game card in chat
+  gameCard: {
+    backgroundColor: "#e6ffe6",
+    borderRadius: 18,
+    padding: 16,
+    marginVertical: 8,
+    maxWidth: "70%",
+    alignSelf: "center",
+    borderWidth: 2,
+    borderColor: "#FFD700",
+    elevation: 3,
+    shadowColor: "#228B22",
+    shadowOpacity: 0.10,
+    shadowRadius: 5,
+  },
+  gameCardTitle: {
+    color: "#228B22",
+    fontWeight: "bold",
+    fontSize: 17,
+    marginBottom: 8,
+    textAlign: "center"
+  },
+  gameCardDetail: {
+    color: "#228B22",
+    fontSize: 15,
+    marginBottom: 2
+  },
+  gameCardValue: {
+    color: "#444",
+    fontWeight: "bold"
+  },
+  gameCardOrganizer: {
+    marginTop: 7,
+    fontStyle: "italic",
+    color: "#228B22",
+    fontSize: 14,
+    textAlign: "right"
+  },
 });
