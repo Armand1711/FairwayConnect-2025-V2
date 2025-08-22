@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ActivityIndicator } from "react-native";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "./firebaseConfig";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function AuthAndOnboardingScreen({ onAuth, onProfile }) {
   const [step, setStep] = useState("login"); // "login" | "signup"
@@ -11,10 +11,17 @@ export default function AuthAndOnboardingScreen({ onAuth, onProfile }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Optional: Email format validation (simple)
+  const isValidEmail = email => /\S+@\S+\.\S+/.test(email);
+
   const handleSignup = async () => {
     setError("");
     if (!email || !password) {
       setError("Enter email and password");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Enter a valid email address");
       return;
     }
     setLoading(true);
@@ -31,6 +38,10 @@ export default function AuthAndOnboardingScreen({ onAuth, onProfile }) {
     setError("");
     if (!email || !password) {
       setError("Enter email and password");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Enter a valid email address");
       return;
     }
     setLoading(true);
@@ -53,14 +64,31 @@ export default function AuthAndOnboardingScreen({ onAuth, onProfile }) {
     <KeyboardAvoidingView style={styles.container} behavior="padding">
       <Text style={styles.title}>{step === "signup" ? "Sign Up" : "Log In"}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
-      <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
       <TouchableOpacity
         style={styles.button}
         onPress={step === "signup" ? handleSignup : handleLogin}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? "Please wait..." : step === "signup" ? "Sign Up" : "Log In"}</Text>
+        {loading ? (
+          <ActivityIndicator color="#228B22" />
+        ) : (
+          <Text style={styles.buttonText}>{step === "signup" ? "Sign Up" : "Log In"}</Text>
+        )}
       </TouchableOpacity>
       <TouchableOpacity onPress={() => setStep(step === "signup" ? "login" : "signup")}>
         <Text style={styles.switchText}>
