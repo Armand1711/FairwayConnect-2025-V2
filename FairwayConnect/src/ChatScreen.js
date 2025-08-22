@@ -36,15 +36,7 @@ export default function ChatScreen({ user, match, onClose }) {
   useEffect(() => {
     const fetchMessagesAndMarkRead = async () => {
       try {
-        // Fetch all messages
-        const messagesQuery = query(
-          collection(db, "matches", matchId, "messages"),
-          orderBy("timestamp")
-        );
-        const msgSnap = await getDocs(messagesQuery);
-        const msgData = msgSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Mark all messages sent TO the current user (and not yet read) as read
+        // Mark unread messages as read first
         const unreadQuery = query(
           collection(db, "matches", matchId, "messages"),
           where("to", "==", user.uid),
@@ -55,6 +47,14 @@ export default function ChatScreen({ user, match, onClose }) {
           updateDoc(docSnap.ref, { read: true })
         ));
 
+        // Fetch all messages (after marking as read)
+        const messagesQuery = query(
+          collection(db, "matches", matchId, "messages"),
+          orderBy("timestamp")
+        );
+        const msgSnap = await getDocs(messagesQuery);
+        const msgData = msgSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
         setMessages(msgData);
       } catch (err) {
         console.log("Error fetching or updating messages:", err);
@@ -62,7 +62,7 @@ export default function ChatScreen({ user, match, onClose }) {
       }
     };
     fetchMessagesAndMarkRead();
-  }, [matchId, user.uid]);
+  }, [matchId, user.uid, chatInput, showGameForm]); // also trigger when input or game form changes
 
   const sendMessage = async () => {
     if (!chatInput.trim()) return;

@@ -1,5 +1,5 @@
 import { StyleSheet, Dimensions } from "react-native";
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 export default StyleSheet.create({
   container: {
@@ -249,5 +249,15 @@ export default StyleSheet.create({
     color: "#228B22",
     fontSize: 14,
     textAlign: "right"
+  },
+  
+  readReceipt: {
+    color: "#228B22",
+    fontSize: 12,
+    marginTop: 2,
+    marginRight: 2,
+    fontWeight: "bold",
+    letterSpacing: 0.5,
+    textAlign: "right",
   },
 });
