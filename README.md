@@ -77,4 +77,4 @@ Each message or game booking is a document, with:
 
 ---
 
-**Thank you for checking out Golf Chat App!**
+**Thank you for checking out my project!**
