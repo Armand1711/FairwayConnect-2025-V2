@@ -17,25 +17,22 @@ import { auth, db } from "./firebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
 
 export default function AuthScreen({ onAuth }) {
-  const [step, setStep] = useState("login"); // "login" or "signup"
-  // Auth fields
+  const [step, setStep] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // Onboarding fields (used on signup)
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [handicap, setHandicap] = useState(""); // --- Added handicap field
   const [interests, setInterests] = useState([]);
   const [newInterest, setNewInterest] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [photoLocal, setPhotoLocal] = useState(null);
-  //
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Email format validation
   const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
-  // Handle picking an image from the phone
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -45,7 +42,7 @@ export default function AuthScreen({ onAuth }) {
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setPhotoLocal(result.assets[0].uri);
-      setPhotoUrl(result.assets[0].uri); // Store local URI for now (can upload to storage later)
+      setPhotoUrl(result.assets[0].uri);
     }
   };
 
@@ -61,7 +58,6 @@ export default function AuthScreen({ onAuth }) {
     setInterests(interests.filter((_, i) => i !== index));
   };
 
-  // Merged Signup+Onboarding
   const handleSignup = async () => {
     setError("");
     if (
@@ -69,6 +65,7 @@ export default function AuthScreen({ onAuth }) {
       !password.trim() ||
       !displayName.trim() ||
       !bio.trim() ||
+      !handicap.trim() ||
       interests.length === 0
     ) {
       setError("Please fill out all fields.");
@@ -86,13 +83,13 @@ export default function AuthScreen({ onAuth }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const userObj = userCredential.user;
-      // Save profile info
       const profileData = {
         uid: userObj.uid,
         displayName: displayName.trim(),
         email: userObj.email,
         photoUrl: photoUrl.trim(),
         bio: bio.trim(),
+        handicap: handicap.trim(), // --- Save handicap
         interests: interests,
         createdAt: new Date().toISOString(),
       };
@@ -105,7 +102,6 @@ export default function AuthScreen({ onAuth }) {
     setLoading(false);
   };
 
-  // Basic Login
   const handleLogin = async () => {
     setError("");
     if (!email.trim() || !password.trim()) {
@@ -176,8 +172,14 @@ export default function AuthScreen({ onAuth }) {
                 autoCapitalize="sentences"
                 placeholderTextColor="#444"
               />
-
-              {/* Interests UI (same as profile) */}
+              <TextInput
+                style={styles.input}
+                placeholder="Handicap"
+                value={handicap}
+                onChangeText={setHandicap}
+                keyboardType="numeric"
+                placeholderTextColor="#444"
+              />
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Interests</Text>
                 <View style={styles.interestsRow}>
@@ -204,7 +206,6 @@ export default function AuthScreen({ onAuth }) {
                   ))}
                 </View>
               </View>
-
               <TouchableOpacity style={styles.photoPickBtn} onPress={pickImage}>
                 <Text style={styles.photoPickText}>
                   {photoLocal ? "Change Profile Photo" : "Pick Profile Photo"}
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 15,
     fontSize: 17,
-    color: "#222", // DARKER TEXT COLOR
+    color: "#222",
     borderWidth: 1,
     borderColor: "#90ee90",
     marginBottom: 15,
@@ -353,7 +354,6 @@ const styles = StyleSheet.create({
     borderColor: "#228B22",
     backgroundColor: "#eee",
   },
-  // Interests styling (same as profile edit)
   formGroup: {
     width: "100%",
     marginBottom: 14,

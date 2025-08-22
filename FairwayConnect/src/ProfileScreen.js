@@ -13,6 +13,7 @@ export default function ProfileScreen({ user, onClose, onLogout }) {
   // Local state for editing
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [handicap, setHandicap] = useState(""); 
   const [interests, setInterests] = useState([]);
   const [photoUrl, setPhotoUrl] = useState("");
   const [newInterest, setNewInterest] = useState("");
@@ -29,6 +30,7 @@ export default function ProfileScreen({ user, onClose, onLogout }) {
           setProfile(data);
           setDisplayName(data.displayName || "");
           setBio(data.bio || "");
+          setHandicap(data.handicap || ""); 
           setInterests(data.interests || []);
           setPhotoUrl(data.photoUrl || user.photoURL || "");
         } else {
@@ -36,11 +38,13 @@ export default function ProfileScreen({ user, onClose, onLogout }) {
           setProfile({
             displayName: user.displayName || "",
             bio: "",
+            handicap: "",
             interests: [],
             photoUrl: user.photoURL || "",
           });
           setDisplayName(user.displayName || "");
           setBio("");
+          setHandicap("");
           setInterests([]);
           setPhotoUrl(user.photoURL || "");
         }
@@ -61,6 +65,7 @@ export default function ProfileScreen({ user, onClose, onLogout }) {
       await updateDoc(userRef, {
         displayName,
         bio,
+        handicap, 
         interests,
         photoUrl,
       });
@@ -143,6 +148,17 @@ export default function ProfileScreen({ user, onClose, onLogout }) {
           onChangeText={setBio}
           placeholder="Tell us about yourself"
           multiline
+        />
+      </View>
+      {/* HANDICAP FIELD */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Handicap</Text>
+        <TextInput
+          style={styles.input}
+          value={handicap}
+          onChangeText={setHandicap}
+          placeholder="Your handicap"
+          keyboardType="numeric"
         />
       </View>
       <View style={styles.formGroup}>

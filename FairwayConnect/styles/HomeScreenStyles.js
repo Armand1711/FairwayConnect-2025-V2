@@ -72,6 +72,29 @@ export default StyleSheet.create({
     color: "#228B22",
     marginBottom: 5,
   },
+  
+  handicapBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFD700",
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 15,
+    marginBottom: 7,
+    marginTop: 2,
+    elevation: 2,
+  },
+  handicapLabel: {
+    fontWeight: "bold",
+    color: "#228B22",
+    fontSize: 15,
+    marginRight: 7,
+  },
+  handicapValue: {
+    color: "#228B22",
+    fontWeight: "bold",
+    fontSize: 17,
+  },
   cardDesc: {
     fontSize: 15,
     color: "#444",
@@ -107,7 +130,6 @@ export default StyleSheet.create({
     fontSize: 18,
     fontWeight: "500",
   },
-  // Bottom navbar styles
   bottomNav: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -146,7 +168,6 @@ export default StyleSheet.create({
     fontWeight: "bold",
     fontSize: 17,
   },
-  // Profile circle styles
   profileCircle: {
     backgroundColor: "#fff",
     borderRadius: 100,
@@ -173,7 +194,6 @@ export default StyleSheet.create({
     color: "#228B22",
     fontWeight: "bold",
   },
-  // Swipe overlays, full card size
   overlayLeft: {
     position: "absolute",
     top: 0,

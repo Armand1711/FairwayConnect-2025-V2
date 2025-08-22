@@ -70,6 +70,7 @@ export default function HomeScreen({ user, onSignOut }) {
     }
   }, [cards, user]);
 
+  
   const renderCard = (card) => (
     <View key={card.id} style={styles.card}>
       <View style={styles.imageContainer}>
@@ -83,6 +84,13 @@ export default function HomeScreen({ user, onSignOut }) {
         <View style={styles.imageOverlay} />
       </View>
       <Text style={styles.cardTitle}>{card.displayName}</Text>
+      
+      {"handicap" in card && card.handicap !== undefined && card.handicap !== "" && (
+        <View style={styles.handicapBox}>
+          <Text style={styles.handicapLabel}>Handicap:</Text>
+          <Text style={styles.handicapValue}>{card.handicap}</Text>
+        </View>
+      )}
       <Text style={styles.cardDesc}>{card.bio}</Text>
       <View style={styles.interestsContainer}>
         {card.interests && card.interests.map((interest, i) => (
