@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { db } from "./firebaseConfig";
-import { collection, addDoc, query, orderBy, getDocs, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, getDocs, serverTimestamp, where, updateDoc } from "firebase/firestore";
 import chatStyles from "../styles/ChatScreenStyles";
 
 export default function ChatScreen({ user, match, onClose }) {
@@ -13,9 +13,11 @@ export default function ChatScreen({ user, match, onClose }) {
   const matchId = match.id;
   const otherUid = match.users.find(uid => uid !== user.uid);
 
+  // Fetch messages and mark received messages as read
   useEffect(() => {
-    const fetchMessages = async () => {
+    const fetchMessagesAndMarkRead = async () => {
       try {
+        // Fetch all messages in this match
         const messagesQuery = query(
           collection(db, "matches", matchId, "messages"),
           orderBy("timestamp")
@@ -23,13 +25,24 @@ export default function ChatScreen({ user, match, onClose }) {
         const snap = await getDocs(messagesQuery);
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setMessages(data);
+
+        // Mark all messages sent TO the current user (and not yet read) as read
+        const unreadQuery = query(
+          collection(db, "matches", matchId, "messages"),
+          where("to", "==", user.uid),
+          where("read", "==", false)
+        );
+        const unreadSnap = await getDocs(unreadQuery);
+        await Promise.all(unreadSnap.docs.map(docSnap =>
+          updateDoc(docSnap.ref, { read: true })
+        ));
       } catch (err) {
-        console.log("Error fetching messages:", err);
+        console.log("Error fetching or updating messages:", err);
         setMessages([]);
       }
     };
-    fetchMessages();
-  }, [matchId]);
+    fetchMessagesAndMarkRead();
+  }, [matchId, user.uid]);
 
   const sendMessage = async () => {
     if (!chatInput.trim()) return;
@@ -38,11 +51,11 @@ export default function ChatScreen({ user, match, onClose }) {
         from: user.uid,
         to: otherUid,
         text: chatInput,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        read: false // NEW: read receipt
       });
       setChatInput("");
-      // Optionally, re-fetch messages or use realtime listeners
-      // For now, simple fetch again
+      // Re-fetch messages to update UI
       const messagesQuery = query(
         collection(db, "matches", matchId, "messages"),
         orderBy("timestamp")
@@ -50,7 +63,6 @@ export default function ChatScreen({ user, match, onClose }) {
       const snap = await getDocs(messagesQuery);
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMessages(data);
-      // Scroll to bottom
       flatListRef.current?.scrollToEnd({ animated: true });
     } catch (err) {
       console.log("Error sending message:", err);
@@ -107,6 +119,10 @@ export default function ChatScreen({ user, match, onClose }) {
                 {" • "}
                 {item.timestamp?.toDate().toLocaleTimeString() || ""}
               </Text>
+              {/* Read Receipt: Only show for YOUR messages */}
+              {item.from === user.uid && item.read ? (
+                <Text style={{ color: "#228B22", fontSize: 12, marginTop: 2 }}>✔ Read</Text>
+              ) : null}
             </View>
           </View>
         )}
