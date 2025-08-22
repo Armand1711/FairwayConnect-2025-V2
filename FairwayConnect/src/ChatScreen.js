@@ -20,6 +20,7 @@ function unformatDateInput(v) {
   return v.replace(/-/g, "");
 }
 function unformatTimeInput(v) {
+  return v.replace(/:/g, "");
 }
 
 export default function ChatScreen({ user, match, onClose }) {
