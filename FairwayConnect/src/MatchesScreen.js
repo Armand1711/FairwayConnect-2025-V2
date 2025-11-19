@@ -1,116 +1,130 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList, Modal, Image, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+  Image,
+  ActivityIndicator,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { db } from "./firebaseConfig";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import ChatScreen from "./ChatScreen";
-import chatStyles from "../styles/ChatAndMatchesStyles";
+import styles from "../styles/ChatAndMatchesStyles";
 
 export default function MatchesScreen({ user, onClose }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState(null);
-  const [players, setPlayers] = useState({}); // stores other users profiles
+  const [players, setPlayers] = useState({});
 
   useEffect(() => {
-    const fetchMatches = async () => {
-      setLoading(true);
-      try {
-        const matchesQuery = query(
-          collection(db, "matches"),
-          where("users", "array-contains", user.uid)
-        );
-        const snap = await getDocs(matchesQuery);
-        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setMatches(data);
-
-        // Fetch other users profiles for display (handicap, avatar, etc)
-        let usersToFetch = [];
-        data.forEach(match => {
-          const otherUid = match.users.find(uid => uid !== user.uid);
-          if (otherUid && !players[otherUid]) usersToFetch.push(otherUid);
-        });
-        let newPlayers = {};
-        await Promise.all(usersToFetch.map(async uid => {
-          try {
-            const docSnap = await getDoc(doc(db, "cards", uid));
-            if (docSnap.exists()) newPlayers[uid] = docSnap.data();
-          } catch (e) {}
-        }));
-        setPlayers(prev => ({ ...prev, ...newPlayers }));
-      } catch (err) {
-        console.log("Error fetching matches:", err);
-        setMatches([]);
-      }
-      setLoading(false);
-    };
     fetchMatches();
-    
   }, [user]);
 
-  const renderItem = ({ item }) => {
-    // Get the other users UID and profile
-    const otherUid = item.users.find(uid => uid !== user.uid);
-    const p = players[otherUid] || {};
+  const fetchMatches = async () => {
+    setLoading(true);
+    try {
+      const q = query(collection(db, "matches"), where("users", "array-contains", user.uid));
+      const snap = await getDocs(q);
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Fetch other user's profile
+      const fetchPromises = data.map(async (match) => {
+        const otherUid = match.users.find((uid) => uid !== user.uid);
+        if (!otherUid || players[otherUid]) return;
+        const docSnap = await getDoc(doc(db, "cards", otherUid));
+        if (docSnap.exists()) {
+          setPlayers((prev) => ({ ...prev, [otherUid]: docSnap.data() }));
+        }
+      });
+      await Promise.all(fetchPromises);
+
+      setMatches(data);
+    } catch (err) {
+      console.log("Error fetching matches:", err);
+    }
+    setLoading(false);
+  };
+
+  const openChat = (match) => setSelectedMatch(match);
+
+  const renderMatch = ({ item }) => {
+    const otherUid = item.users.find((uid) => uid !== user.uid);
+    const profile = players[otherUid] || {};
 
     return (
-      <TouchableOpacity style={chatStyles.matchCard} onPress={() => setSelectedMatch(item)}>
+      <TouchableOpacity style={styles.matchCard} onPress={() => openChat(item)}>
         <Image
-          source={
-            p.photoUrl
-              ? { uri: p.photoUrl }
-              : { uri: "https://ui-avatars.com/api/?name=User&background=eee&color=228B22&size=54" }
-          }
-          style={chatStyles.matchAvatar}
+          source={{
+            uri:
+              profile.photoUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.displayName || "G")}&background=1e293b&color=22c55e&size=120&bold=true`,
+          }}
+          style={styles.avatar}
         />
-        <View style={chatStyles.matchInfo}>
-          <Text style={chatStyles.matchName}>{p.displayName || otherUid}</Text>
-          {p.handicap !== undefined && p.handicap !== "" && (
-            <Text style={chatStyles.matchHandicap}>Handicap: {p.handicap}</Text>
+        <View style={styles.info}>
+          <Text style={styles.name}>{profile.displayName || "Golfer"}</Text>
+          {profile.handicap && (
+            <Text style={styles.handicap}>HCP {profile.handicap}</Text>
           )}
-          {p.bio ? <Text style={chatStyles.matchBio}>{p.bio}</Text> : null}
-          <Text style={chatStyles.matchDate}>
-            Matched at: {item.createdAt?.toDate?.() ? item.createdAt.toDate().toLocaleString() : "Unknown"}
-          </Text>
+          {profile.bio ? (
+            <Text style={styles.bio} numberOfLines={2}>
+              {profile.bio}
+            </Text>
+          ) : (
+            <Text style={styles.noBio}>Ready to hit the fairway...</Text>
+          )}
         </View>
-        <TouchableOpacity style={chatStyles.chatBtn} onPress={() => setSelectedMatch(item)}>
-          <Text style={chatStyles.chatBtnText}>Chat</Text>
-        </TouchableOpacity>
+        <View style={styles.chatArrow}>
+          <Ionicons name="chevron-forward" size={28} color="#22c55e" />
+        </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={chatStyles.container}>
-      <View style={chatStyles.header}>
-        <Text style={chatStyles.headerTitle}>Your Matches</Text>
-        <TouchableOpacity style={chatStyles.closeBtn} onPress={onClose}>
-          <Text style={chatStyles.closeBtnText}>✖</Text>
+    <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={28} color="#fff" />
         </TouchableOpacity>
+        <Text style={styles.title}>Your Matches</Text>
+        <View style={{ width: 50 }} />
       </View>
+
+      {/* Content */}
       {loading ? (
-        <ActivityIndicator size="large" color="#228B22" style={{ marginTop: 30 }} />
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color="#22c55e" />
+          <Text style={styles.loadingText}>Finding your playing partners...</Text>
+        </View>
       ) : matches.length > 0 ? (
         <FlatList
           data={matches}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={chatStyles.matchesList}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMatch}
+          contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <Text style={{ textAlign: "center", marginTop: 40, color: "#888", fontSize: 16 }}>No matches yet.</Text>
+        <View style={styles.empty}>
+          <Ionicons name="heart-outline" size={80} color="#475569" />
+          <Text style={styles.emptyTitle}>No matches yet</Text>
+          <Text style={styles.emptyText}>Keep swiping — your perfect golf partner is out there!</Text>
+        </View>
       )}
 
       {/* Chat Modal */}
       <Modal visible={!!selectedMatch} animationType="slide">
         {selectedMatch && (
-          <ChatScreen
-            user={user}
-            match={selectedMatch}
-            onClose={() => setSelectedMatch(null)}
-          />
+          <ChatScreen user={user} match={selectedMatch} onClose={() => setSelectedMatch(null)} />
         )}
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }

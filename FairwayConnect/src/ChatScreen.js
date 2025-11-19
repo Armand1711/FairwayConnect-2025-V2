@@ -1,256 +1,205 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform, Modal } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  Image,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { db } from "./firebaseConfig";
-import { collection, addDoc, query, orderBy, getDocs, serverTimestamp, where, updateDoc } from "firebase/firestore";
-import chatStyles from "../styles/ChatScreenStyles";
+import {
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  getDocs,
+  serverTimestamp,
+  where,
+  updateDoc,
+} from "firebase/firestore";
+import styles from "../styles/ChatScreenStyles";
 
-// Input formatting helpers
-function formatDateInput(v) {
-  v = v.replace(/[^\d]/g, "").slice(0, 8);
-  if (v.length >= 5) v = v.slice(0, 4) + "-" + v.slice(4);
-  if (v.length >= 8) v = v.slice(0, 7) + "-" + v.slice(7);
-  return v;
-}
-function formatTimeInput(v) {
-  v = v.replace(/[^\d]/g, "").slice(0, 4);
-  if (v.length >= 3) v = v.slice(0, 2) + ":" + v.slice(2);
-  return v;
-}
-function unformatDateInput(v) {
-  return v.replace(/-/g, "");
-}
-function unformatTimeInput(v) {
-  return v.replace(/:/g, "");
-}
+// Format helpers
+const formatDateInput = (v) => v.replace(/[^\d]/g, "").slice(0, 8).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3").slice(0, 10);
+const formatTimeInput = (v) => v.replace(/[^\d]/g, "").slice(0, 4).replace(/(\d{2})(\d{2})/, "$1:$2").slice(0, 5);
 
 export default function ChatScreen({ user, match, onClose }) {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
+  const [showGameForm, setShowGameForm] = useState(false);
+  const [gameDetails, setGameDetails] = useState({ date: "", time: "", location: "" });
   const flatListRef = useRef(null);
 
-  // Get the match doc id and the other user's UID
   const matchId = match.id;
   const otherUid = match.users.find(uid => uid !== user.uid);
 
-  // Fetch messages and mark received messages as read
   useEffect(() => {
-    const fetchMessagesAndMarkRead = async () => {
-      try {
-        // Mark unread messages as read first
-        const unreadQuery = query(
-          collection(db, "matches", matchId, "messages"),
-          where("to", "==", user.uid),
-          where("read", "==", false)
-        );
-        const unreadSnap = await getDocs(unreadQuery);
-        await Promise.all(unreadSnap.docs.map(docSnap =>
-          updateDoc(docSnap.ref, { read: true })
-        ));
+    fetchAndMarkRead();
+  }, [matchId, user.uid]);
 
-        // Fetch all messages (after marking as read)
-        const messagesQuery = query(
-          collection(db, "matches", matchId, "messages"),
-          orderBy("timestamp")
-        );
-        const msgSnap = await getDocs(messagesQuery);
-        const msgData = msgSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const fetchAndMarkRead = async () => {
+    try {
+      // Mark unread
+      const unreadQ = query(
+        collection(db, "matches", matchId, "messages"),
+        where("to", "==", user.uid),
+        where("read", "==", false)
+      );
+      const unreadSnap = await getDocs(unreadQ);
+      await Promise.all(unreadSnap.docs.map(d => updateDoc(d.ref, { read: true })));
 
-        setMessages(msgData);
-      } catch (err) {
-        console.log("Error fetching or updating messages:", err);
-        setMessages([]);
-      }
-    };
-    fetchMessagesAndMarkRead();
-  }, [matchId, user.uid, chatInput, showGameForm]); // also trigger when input or game form changes
+      // Fetch all
+      const q = query(collection(db, "matches", matchId, "messages"), orderBy("timestamp"));
+      const snap = await getDocs(q);
+      setMessages(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const sendMessage = async () => {
     if (!chatInput.trim()) return;
-    try {
-      await addDoc(collection(db, "matches", matchId, "messages"), {
-        from: user.uid,
-        to: otherUid,
-        text: chatInput,
-        type: "text",
-        timestamp: serverTimestamp(),
-        read: false
-      });
-      setChatInput("");
-      setMessages([]); // Trigger re-fetch
-    } catch (err) {
-      console.log("Error sending message:", err);
-    }
+    await addDoc(collection(db, "matches", matchId, "messages"), {
+      from: user.uid,
+      to: otherUid,
+      text: chatInput.trim(),
+      type: "text",
+      timestamp: serverTimestamp(),
+      read: false,
+    });
+    setChatInput("");
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
-  // Organizer: form to set up a golf game (date/time as formatted)
-  const [showGameForm, setShowGameForm] = useState(false);
-  const [gameDetails, setGameDetails] = useState({ date: "", time: "", location: "" });
   const organizeGame = async () => {
-    // Validate that date and time are numbers (unformatted)
-    const rawDate = unformatDateInput(gameDetails.date);
-    const rawTime = unformatTimeInput(gameDetails.time);
-    if (!rawDate || isNaN(Number(rawDate)) || rawDate.length !== 8 ||
-        !rawTime || isNaN(Number(rawTime)) || rawTime.length !== 4 ||
-        !gameDetails.location.trim()) {
-      alert("Please enter a valid date (YYYY-MM-DD), time (HH:MM), and location.");
+    const rawDate = gameDetails.date.replace(/-/g, "");
+    const rawTime = gameDetails.time.replace(/:/g, "");
+    if (rawDate.length !== 8 || rawTime.length !== 4 || !gameDetails.location.trim()) {
+      alert("Fill all fields correctly!");
       return;
     }
-    try {
-      // Add as a message in the chat, with type "game"
-      await addDoc(collection(db, "matches", matchId, "messages"), {
-        from: user.uid,
-        to: otherUid,
-        type: "game",
-        date: rawDate,
-        time: rawTime,
-        location: gameDetails.location,
-        organizedBy: user.uid,
-        timestamp: serverTimestamp(),
-        read: false
-      });
-      setShowGameForm(false);
-      setGameDetails({ date: "", time: "", location: "" });
-      setMessages([]); // Trigger re-fetch
-      alert("Golf game organized!");
-    } catch (err) {
-      console.log("Error organizing game:", err);
-    }
+    await addDoc(collection(db, "matches", matchId, "messages"), {
+      from: user.uid,
+      to: otherUid,
+      type: "game",
+      date: rawDate,
+      time: rawTime,
+      location: gameDetails.location,
+      organizedBy: user.uid,
+      timestamp: serverTimestamp(),
+      read: false,
+    });
+    setShowGameForm(false);
+    setGameDetails({ date: "", time: "", location: "" });
   };
 
-  const renderItem = ({ item }) => {
-    // Standard message
-    if (!item.type || item.type === "text") {
-      return (
-        <View style={[
-          chatStyles.chatBubbleRow,
-          { justifyContent: item.from === user.uid ? "flex-end" : "flex-start" }
-        ]}>
-          <View style={[
-            chatStyles.chatBubble,
-            item.from === user.uid && chatStyles.chatBubbleSelf
-          ]}>
-            <Text style={[
-              chatStyles.chatBubbleText,
-              item.from === user.uid && chatStyles.chatBubbleTextSelf
-            ]}>
-              {item.text}
-            </Text>
-            <Text style={chatStyles.chatMeta}>
-              {item.from === user.uid ? "You" : "Them"}
-              {" • "}
-              {item.timestamp?.toDate().toLocaleTimeString() || ""}
-            </Text>
-            {/* Read Receipt */}
-            {item.from === user.uid && item.read ? (
-              <Text style={{ color: "#228B22", fontSize: 12, marginTop: 2 }}>✔ Read</Text>
-            ) : null}
-          </View>
-        </View>
-      );
-    }
-    // Golf game card as a chat message
+  const renderMessage = ({ item }) => {
+    const isMine = item.from === user.uid;
+
     if (item.type === "game") {
-      // formatted date: YYYY-MM-DD; formatted time: HH:MM
-      const formattedDate = item.date && item.date.length === 8
-        ? `${item.date.slice(0,4)}-${item.date.slice(4,6)}-${item.date.slice(6,8)}`
-        : item.date;
-      const formattedTime = item.time && item.time.length === 4
-        ? `${item.time.slice(0,2)}:${item.time.slice(2,4)}`
-        : item.time;
+      const date = `${item.date.slice(0,4)}-${item.date.slice(4,6)}-${item.date.slice(6)}`;
+      const time = `${item.time.slice(0,2)}:${item.time.slice(2)}`;
       return (
-        <View style={chatStyles.gameCard}>
-          <Text style={chatStyles.gameCardTitle}>⛳ Golf Game Booked!</Text>
-          <Text style={chatStyles.gameCardDetail}>Date: <Text style={chatStyles.gameCardValue}>{formattedDate}</Text></Text>
-          <Text style={chatStyles.gameCardDetail}>Time: <Text style={chatStyles.gameCardValue}>{formattedTime}</Text></Text>
-          <Text style={chatStyles.gameCardDetail}>Location: <Text style={chatStyles.gameCardValue}>{item.location}</Text></Text>
-          <Text style={chatStyles.gameCardOrganizer}>
-            Organizer: {item.organizedBy === user.uid ? "You" : "Them"}
+        <View style={styles.gameCard}>
+          <Ionicons name="golf" size={32} color="#22c55e" />
+          <Text style={styles.gameTitle}>Golf Round Locked In</Text>
+          <Text style={styles.gameDetail}>Date: <Text style={styles.gameValue}>{date}</Text></Text>
+          <Text style={styles.gameDetail}>Time: <Text style={styles.gameValue}>{time}</Text></Text>
+          <Text style={styles.gameDetail}>Course: <Text style={styles.gameValue}>{item.location}</Text></Text>
+          <Text style={styles.gameOrganizer}>
+            Organized by {item.organizedBy === user.uid ? "You" : "Your Match"}
           </Text>
         </View>
       );
     }
-    return null;
+
+    return (
+      <View style={[styles.bubbleRow, isMine && styles.bubbleRowRight]}>
+        <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+          <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
+            {item.text}
+          </Text>
+          <View style={styles.bubbleFooter}>
+            <Text style={styles.bubbleTime}>
+              {item.timestamp?.toDate()?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {isMine && item.read && <Ionicons name="checkmark-done" size={16} color="#22c55e" />}
+          </View>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <KeyboardAvoidingView style={chatStyles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={chatStyles.header}>
-        <Text style={chatStyles.headerTitle}>Chat with {otherUid}</Text>
-        <TouchableOpacity style={chatStyles.closeBtn} onPress={onClose}>
-          <Text style={chatStyles.closeBtnText}>✖</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={item => item.id + (item.type || "text")}
-        renderItem={renderItem}
-        contentContainerStyle={chatStyles.chatContainer}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
-      <View style={chatStyles.chatInputRow}>
-        <TextInput
-          style={chatStyles.chatInput}
-          placeholder="Type a message..."
-          value={chatInput}
-          onChangeText={setChatInput}
-          placeholderTextColor="#444"
-        />
-        <TouchableOpacity style={chatStyles.sendBtn} onPress={sendMessage}>
-          <Text style={chatStyles.sendBtnText}>Send</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={chatStyles.gameBtn} onPress={() => setShowGameForm(true)}>
-        <Text style={chatStyles.gameBtnText}>📅 Book Golf Game</Text>
-      </TouchableOpacity>
+    <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.container}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={28} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chat</Text>
+          <View style={{ width: 50 }} />
+        </View>
 
-      {/* Golf game booking modal */}
-      <Modal visible={showGameForm} transparent animationType="fade">
-        <View style={chatStyles.gameFormOverlay}>
-          <View style={chatStyles.gameForm}>
-            <Text style={chatStyles.gameFormTitle}>Book a Golf Game</Text>
-            <TextInput
-              style={chatStyles.gameInput}
-              placeholder="Date (YYYY-MM-DD)"
-              value={gameDetails.date}
-              keyboardType="numeric"
-              onChangeText={v => setGameDetails(d => ({
-                ...d,
-                date: formatDateInput(v)
-              }))}
-              placeholderTextColor="#444"
-              maxLength={10}
-            />
-            <TextInput
-              style={chatStyles.gameInput}
-              placeholder="Time (HH:MM)"
-              value={gameDetails.time}
-              keyboardType="numeric"
-              onChangeText={v => setGameDetails(d => ({
-                ...d,
-                time: formatTimeInput(v)
-              }))}
-              placeholderTextColor="#444"
-              maxLength={5}
-            />
-            <TextInput
-              style={chatStyles.gameInput}
-              placeholder="Location"
-              value={gameDetails.location}
-              onChangeText={v => setGameDetails(d => ({ ...d, location: v }))}
-              placeholderTextColor="#444"
-            />
-            <View style={chatStyles.gameFormBtnRow}>
-              <TouchableOpacity style={chatStyles.organizeBtn} onPress={organizeGame}>
-                <Text style={chatStyles.organizeText}>Book</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={chatStyles.cancelBtn} onPress={() => setShowGameForm(false)}>
-                <Text style={chatStyles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={item => item.id}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.messageList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Message..."
+            placeholderTextColor="#64748b"
+            value={chatInput}
+            onChangeText={setChatInput}
+            onSubmitEditing={sendMessage}
+          />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendBtn}>
+            <Ionicons name="send" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Book Game Button */}
+        <TouchableOpacity style={styles.bookGameBtn} onPress={() => setShowGameForm(true)}>
+          <Ionicons name="golf-outline" size={26} color="#fff" />
+          <Text style={styles.bookGameText}>Book Tee Time</Text>
+        </TouchableOpacity>
+
+        {/* Game Modal */}
+        <Modal visible={showGameForm} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Book a Round</Text>
+              <TextInput style={styles.modalInput} placeholder="Date (YYYY-MM-DD)" value={gameDetails.date} onChangeText={t => setGameDetails(d => ({ ...d, date: formatDateInput(t) }))} keyboardType="numeric" maxLength={10} />
+              <TextInput style={styles.modalInput} placeholder="Time (HH:MM)" value={gameDetails.time} onChangeText={t => setGameDetails(d => ({ ...d, time: formatDateInput(t).slice(11) || formatTimeInput(t) }))} keyboardType="numeric" maxLength={5} />
+              <TextInput style={styles.modalInput} placeholder="Course / Location" value={gameDetails.location} onChangeText={t => setGameDetails(d => ({ ...d, location: t }))} />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.modalCancel} onPress={() => setShowGameForm(false)}>
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalConfirm} onPress={organizeGame}>
+                  <Text style={styles.modalConfirmText}>Confirm Tee Time</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </KeyboardAvoidingView>
+        </Modal>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }

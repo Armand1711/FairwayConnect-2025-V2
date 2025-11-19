@@ -1,110 +1,129 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  ActivityIndicator,
+  Platform,
+  Alert,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "./firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
+import styles from "../styles/AuthGateStyles";
 
 export default function AuthAndOnboardingScreen({ onAuth, onProfile }) {
-  const [step, setStep] = useState("login"); // "login" | "signup"
+  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  // Optional: Email format validation (simple)
-  const isValidEmail = email => /\S+@\S+\.\S+/.test(email);
+  const validateEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
   const handleSignup = async () => {
-    setError("");
-    if (!email || !password) {
-      setError("Enter email and password");
-      return;
-    }
-    if (!isValidEmail(email)) {
-      setError("Enter a valid email address");
-      return;
-    }
+    if (!email || !password) return Alert.alert("Fill in both fields");
+    if (!validateEmail(email)) return Alert.alert("Invalid email");
+    if (password.length < 6) return Alert.alert("Password must be 6+ characters");
+
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      onAuth(userCredential.user); // triggers onboarding in App.js
-    } catch (e) {
-      setError(e.message);
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      onProfile(cred.user); // Go to full onboarding
+    } catch (err) {
+      Alert.alert("Sign Up Failed", err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogin = async () => {
-    setError("");
-    if (!email || !password) {
-      setError("Enter email and password");
-      return;
-    }
-    if (!isValidEmail(email)) {
-      setError("Enter a valid email address");
-      return;
-    }
+    if (!email || !password) return Alert.alert("Enter email and password");
+    if (!validateEmail(email)) return Alert.alert("Invalid email");
+
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // Check if user has a profile:
-      const profileDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-      if (profileDoc.exists()) {
-        onAuth(userCredential.user); // go to HomeScreen
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const profileSnap = await getDoc(doc(db, "users", cred.user.uid));
+
+      if (profileSnap.exists()) {
+        onAuth(cred.user); // Profile exists → Home
       } else {
-        onProfile(userCredential.user); // go to onboarding
+        onProfile(cred.user); // No profile → Onboarding
       }
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      Alert.alert("Login Failed", err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
-      <Text style={styles.title}>{step === "signup" ? "Sign Up" : "Log In"}</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <TouchableOpacity
-        style={styles.button}
-        onPress={step === "signup" ? handleSignup : handleLogin}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#228B22" />
-        ) : (
-          <Text style={styles.buttonText}>{step === "signup" ? "Sign Up" : "Log In"}</Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => setStep(step === "signup" ? "login" : "signup")}>
-        <Text style={styles.switchText}>
-          {step === "signup" ? "Already have an account? Log In" : "Need an account? Sign Up"}
-        </Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+    <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <View style={styles.content}>
+          {/* Logo */}
+          <Text style={styles.logo}>TeeMatch</Text>
+          <Text style={styles.tagline}>Where golfers find their perfect match</Text>
+
+          {/* Card */}
+          <View style={styles.card}>
+            <Text style={styles.title}>
+              {isSignup ? "Join the Club" : "Welcome Back"}
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            <TouchableOpacity
+              style={[styles.authBtn, loading && styles.disabled]}
+              onPress={isSignup ? handleSignup : handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.authBtnText}>
+                    {isSignup ? "Create Account" : "Log In"}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={24} color="#fff" style={{ marginLeft: 8 }} />
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setIsSignup(!isSignup)}>
+              <Text style={styles.switchText}>
+                {isSignup
+                  ? "Already have an account? Log In"
+                  : "New to TeeMatch? Sign Up"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.footer}>
+            The fairest way to find your next golf partner
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#fff" },
-  title: { fontSize: 28, fontWeight: "bold", color: "#228B22", marginBottom: 24, textAlign: "center" },
-  input: { height: 48, borderWidth: 1, borderColor: "#228B22", borderRadius: 12, marginBottom: 16, paddingHorizontal: 14, fontSize: 16 },
-  button: { backgroundColor: "#FFD700", borderRadius: 18, paddingVertical: 14, alignItems: "center", marginTop: 8 },
-  buttonText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
-  switchText: { color: "#228B22", textAlign: "center", marginTop: 18, fontSize: 16 },
-  error: { color: "#b71c1c", backgroundColor: "#ffeeee", padding: 8, borderRadius: 8, marginBottom: 12, textAlign: "center" }
-});

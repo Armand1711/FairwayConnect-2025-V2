@@ -1,65 +1,78 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView } from "react-native";
-import { db } from "./firebaseConfig";
-import { doc, setDoc } from "firebase/firestore";
+import { StyleSheet } from "react-native";
 
-export default function OnboardingProfileScreen({ user, onFinish }) {
-  const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
-  const [interests, setInterests] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleFinish = async () => {
-    setError("");
-    if (!displayName || !bio || !interests) {
-      setError("Fill all required fields");
-      return;
-    }
-    setLoading(true);
-    try {
-      const profileData = {
-        uid: user.uid,
-        displayName,
-        email: user.email,
-        photoUrl,
-        bio,
-        interests: interests.split(",").map(s => s.trim()),
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, "users", user.uid), profileData);
-      await setDoc(doc(db, "cards", user.uid), {
-        cardId: user.uid,
-        ...profileData,
-      });
-      onFinish(); // Go to HomeScreen
-    } catch (e) {
-      setError(e.message);
-    }
-    setLoading(false);
-  };
-
-  return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
-      <Text style={styles.title}>Complete Your Profile</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput style={styles.input} placeholder="Display Name" value={displayName} onChangeText={setDisplayName} />
-      <TextInput style={styles.input} placeholder="Bio" value={bio} onChangeText={setBio} />
-      <TextInput style={styles.input} placeholder="Interests (comma separated)" value={interests} onChangeText={setInterests} />
-      <TextInput style={styles.input} placeholder="Photo URL" value={photoUrl} onChangeText={setPhotoUrl} />
-      <TouchableOpacity style={styles.button} onPress={handleFinish} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? "Saving..." : "Finish"}</Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#fff" },
-  title: { fontSize: 28, fontWeight: "bold", color: "#228B22", marginBottom: 24, textAlign: "center" },
-  input: { height: 48, borderWidth: 1, borderColor: "#228B22", borderRadius: 12, marginBottom: 16, paddingHorizontal: 14, fontSize: 16 },
-  button: { backgroundColor: "#FFD700", borderRadius: 18, paddingVertical: 14, alignItems: "center", marginTop: 8 },
-  buttonText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
-  error: { color: "#b71c1c", backgroundColor: "#ffeeee", padding: 8, borderRadius: 8, marginBottom: 12, textAlign: "center" }
+export default StyleSheet.create({
+  container: { flex: 1 },
+  scrollContent: {
+    padding: 24,
+    paddingTop: 80,
+    paddingBottom: 60,
+    flexGrow: 1,
+  },
+  header: { alignItems: "center", marginBottom: 40 },
+  logo: {
+    fontSize: 48,
+    fontWeight: "900",
+    color: "#22c55e",
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 18,
+    color: "#94a3b8",
+    fontWeight: "500",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 40,
+  },
+  inputGroup: { marginBottom: 24 },
+  label: {
+    color: "#94a3b8",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+    marginLeft: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+  },
+  input: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 16,
+    padding: 18,
+    fontSize: 17,
+    color: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.3)",
+  },
+  bioInput: { height: 110, paddingTop: 18 },
+  finishBtn: {
+    backgroundColor: "#22c55e",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
+    borderRadius: 30,
+    marginTop: 30,
+    shadowColor: "#22c55e",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  finishText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+  footerText: {
+    textAlign: "center",
+    marginTop: 30,
+    color: "#64748b",
+    fontSize: 15,
+    fontStyle: "italic",
+  },
 });

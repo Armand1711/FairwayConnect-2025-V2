@@ -1,104 +1,73 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
 export default function OnboardingScreen({ user, onComplete }) {
   const [displayName, setDisplayName] = useState("");
+  const [handicap, setHandicap] = useState("");
   const [bio, setBio] = useState("");
   const [interests, setInterests] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   const handleSubmit = async () => {
-    setErrorMsg("");
     if (!displayName.trim() || !bio.trim() || !interests.trim()) {
-      setErrorMsg("Please fill out all required fields.");
-      return;
+      return Alert.alert("Missing Info", "Please fill all fields");
     }
-    const interestsArr = interests
-      .split(",")
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-    if (interestsArr.length === 0) {
-      setErrorMsg("Please enter at least one interest.");
-      return;
-    }
+
+    const interestsArr = interests.split(",").map(s => s.trim()).filter(Boolean);
+    if (interestsArr.length === 0) return Alert.alert("Add at least one interest");
+
     setLoading(true);
     try {
-      // Save to 'users' collection
-      await setDoc(doc(db, "users", user.uid), {
+      const data = {
         uid: user.uid,
         displayName: displayName.trim(),
+        handicap: handicap || null,
+        bio: bio.trim(),
+        interests: interestsArr,
+        photoUrl: user.photoURL || null,
         email: user.email,
-        photoUrl: photoUrl.trim(),
-        bio: bio.trim(),
-        interests: interestsArr,
         createdAt: new Date().toISOString(),
-      });
-      // Save to 'cards' collection
-      await setDoc(doc(db, "cards", user.uid), {
-        cardId: user.uid,
-        uid: user.uid,
-        displayName: displayName.trim(),
-        bio: bio.trim(),
-        interests: interestsArr,
-        photoUrl: photoUrl.trim(),
-        createdAt: new Date().toISOString(),
-      });
-      setLoading(false);
-      onComplete(); // callback to proceed to HomeScreen
+      };
+
+      await Promise.all([
+        setDoc(doc(db, "users", user.uid), data),
+        setDoc(doc(db, "cards", user.uid), { cardId: user.uid, ...data }),
+      ]);
+
+      onComplete(); 
     } catch (e) {
+      Alert.alert("Error", "Failed to save profile");
+    } finally {
       setLoading(false);
-      setErrorMsg(e.message);
     }
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
-      <Text style={styles.title}>Onboarding</Text>
-      {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
-      <TextInput
-        style={styles.input}
-        placeholder="Display Name"
-        value={displayName}
-        onChangeText={setDisplayName}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Bio"
-        value={bio}
-        onChangeText={setBio}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Interests (comma separated)"
-        value={interests}
-        onChangeText={setInterests}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Photo URL"
-        value={photoUrl}
-        onChangeText={setPhotoUrl}
-      />
-      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#228B22" />
-        ) : (
-          <Text style={styles.buttonText}>Complete Onboarding</Text>
-        )}
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+    <LinearGradient colors={["#0f172a", "#1e293b"]} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 32, paddingTop: 80 }}>
+          <Text style={{ fontSize: 48, fontWeight: "900", color: "#22c55e", textAlign: "center" }}>FairwayConnect</Text>
+          <Text style={{ fontSize: 32, color: "#fff", textAlign: "center", marginTop: 40, fontWeight: "bold" }}>Complete Your Profile</Text>
+
+          <TextInput style={s.input} placeholder="Display Name" value={displayName} onChangeText={setDisplayName} />
+          <TextInput style={s.input} placeholder="Handicap (optional)" value={handicap} onChangeText={setHandicap} keyboardType="decimal-pad" />
+          <TextInput style={[s.input, { height: 120 }]} placeholder="Bio" value={bio} onChangeText={setBio} multiline />
+          <TextInput style={s.input} placeholder="Interests (comma separated)" value={interests} onChangeText={setInterests} />
+
+          <TouchableOpacity style={s.btn} onPress={handleSubmit} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Start Swiping</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#fff" },
-  title: { fontSize: 28, fontWeight: "bold", color: "#228B22", marginBottom: 24, textAlign: "center" },
-  input: { height: 48, borderWidth: 1, borderColor: "#228B22", borderRadius: 12, marginBottom: 16, paddingHorizontal: 14, fontSize: 16 },
-  button: { backgroundColor: "#FFD700", borderRadius: 18, paddingVertical: 14, alignItems: "center", marginTop: 18 },
-  buttonText: { color: "#228B22", fontWeight: "bold", fontSize: 18 },
-  error: { color: "#b71c1c", backgroundColor: "#ffeeee", padding: 8, borderRadius: 8, marginBottom: 12, textAlign: "center" }
-});
+const s = {
+  input: { backgroundColor: "rgba(255,255,255,0.08)", color: "#fff", padding: 20, borderRadius: 20, marginBottom: 20, fontSize: 17, borderWidth: 1.5, borderColor: "rgba(34,197,94,0.4)" },
+  btn: { backgroundColor: "#22c55e", padding: 20, borderRadius: 30, alignItems: "center", marginTop: 20 },
+  btnText: { color: "#fff", fontSize: 19, fontWeight: "bold" },
+};
