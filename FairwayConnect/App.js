@@ -16,18 +16,15 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // Check if user has completed onboarding
-        const profileSnap = await getDoc(doc(db, "users", currentUser.uid));
+        const snap = await getDoc(doc(db, "users", currentUser.uid));
         setUser(currentUser);
-        setShowOnboarding(!profileSnap.exists());
+        setShowOnboarding(!snap.exists());
       } else {
         setUser(null);
-        setShowOnboarding(false);
       }
       setLoading(false);
     });
-
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   if (loading) {
@@ -41,7 +38,7 @@ export default function App() {
   if (!user) {
     return (
       <AuthScreen
-        onAuth={(u) => setUser(u)}
+        onAuth={setUser}
         onProfile={(u) => {
           setUser(u);
           setShowOnboarding(true);
@@ -51,12 +48,7 @@ export default function App() {
   }
 
   if (showOnboarding) {
-    return (
-      <OnboardingScreen
-        user={user}
-        onComplete={() => setShowOnboarding(false)}
-      />
-    );
+    return <OnboardingScreen user={user} onComplete={() => setShowOnboarding(false)} />;
   }
 
   return <HomeScreen user={user} onSignOut={() => setUser(null)} />;
